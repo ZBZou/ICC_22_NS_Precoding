@@ -1,0 +1,99 @@
+%% BER
+clear all;
+close all;
+
+Nu = 10; % users
+T = 100; % time length
+taps_max = 20;
+taps_min = 10;
+NT = 1; 
+ = 10;
+% data = zeros(Nu, T-taps_max); %data
+
+Taps = randi([taps_min,taps_max],Nu,T);
+
+data = -3 + 2*randi([0,3],Nu,T); %data serie
+Nloop
+SNRdB = [0:1:20];
+BER = zeros(length(SNRdB),1);
+
+for i_snr = 1:length(SNRdB)
+   for loop = 1:Nloop
+      i_snr
+      % NS channel generate
+      sigma2 = NT*0.5*10^(-SNRdB(i_snr)/10); sigma = sqrt(sigma2);
+
+      Hst = zeros(Nu,T, Nu, T);
+      for u1 = 1:Nu
+         for t1 = 1:T
+             for u2 = 1:Nu
+                for t2 = 1:T
+                   taps = Taps(u2,t1);
+                   if t2 > t1 || t2 < t1 - taps
+                      continue
+                   end
+                    vi = sqrt(t2/T)*randn();
+                    ei = sqrt(t2/T)*randn();
+                    Hst(u1,t1,u2,t2) = ei + vi*randn();
+                end
+             end 
+         end 
+      end 
+
+      Hst = Hst + 0.01*randn(Nu,T, Nu, T);
+
+      % GMT
+
+      K = reshape(Hst, T*Nu, T*Nu);
+      [U,temp_sig,V] = svd(K);
+
+      DS = diag(temp_sig);
+      Sig = [];
+      N = 0;
+      for i = 1:length(DS)
+         if DS(i) < 0.01 
+            N = i-1; % N most contributed eigenfunctions
+            break;
+         end
+         N;
+         Sig(i) = DS(i);
+      end 
+
+      % construct X(t)
+      s = reshape(data,Nu*T,1);
+      xn = zeros(Nu*T,1);
+      X = zeros(Nu*T,1);
+
+      for i = 1:N
+         xn = dot(s, U(:,i))/Sig(i);
+         X = X + xn*V(:,i);
+      end
+
+      %receive Rx
+
+      Tx = reshape(X, Nu, T);
+      Rx = zeros(Nu, T);
+      for i = 1:Nu
+         for j = 1:T
+            Rx(i,j) = sum(sum(squeeze(Hst(i,j,:,:)) .* Tx)) + sigma*randn();
+         end
+      end 
+
+      % estimate/division
+      ne1 = zeros(Nu,1);
+      ne2 = zeros(Nu,1);
+      
+      for i = 1:Nu
+         hat_r1 = round(plt_r(i,:));
+         hat_r2 = round(plt_r(i,taps_max+1:end));
+         hat_r1(find(hat_r1 < -3)) = -3;
+         hat_r1(find(hat_r1 > 3)) = 3;
+         hat_r2(find(hat_r2 < -3)) = -3;
+         hat_r2(find(hat_r2 > 3)) = 3;
+         ne1(i) = length(find(squeeze(plt_s(i,1:end)) - hat_r1(1:end)));
+         ne2(i) = length(find(squeeze(plt_s(i,taps_max+1:end)) - hat_r2(1:end)));
+      end
+      BER(i_snr) =  BER(i_snr) + sum(ne2)/(Nu*(T - taps_max));
+   end
+   BER(i_snr) = BER(i_snr)/Nloop;
+end

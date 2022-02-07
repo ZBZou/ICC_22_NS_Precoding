@@ -1,0 +1,15 @@
+%%%%%%H_G%%%%
+function H_G = atomic_coefficient(LH, T, F, Tau, Nu)
+H_G = zeros(T, F, Tau, Nu);
+for i = 1:T
+   for j = 1:F
+      for n = 1:Tau
+         for m = 1:Nu
+            if j+m > 18
+               continue
+            end
+            H_G(i,j,n,m) = LH(i+n,j+m)*exp(-2i*pi*(j + m));
+         end
+      end
+   end
+end 
